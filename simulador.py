@@ -1,35 +1,50 @@
 import os
+import time
+import json
 from dotenv import load_dotenv
 import paho.mqtt.client as mqtt
+from threading import Thread
 
-# Cargar variables del .env
 load_dotenv()
 
 MQTT_HOST = os.getenv("MQTT_HOST")
 MQTT_PORT = int(os.getenv("MQTT_PORT"))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC")
+DEVICE_ID = os.getenv("DEVICE_ID")
 
-# Callback cuando se conecta al broker
 def on_connect(client, userdata, flags, reason_code, properties=None):
-    print("Conectado al broker con código: " + str(reason_code))
+    print("Conectado al broker con código:", reason_code)
     client.subscribe(MQTT_TOPIC)
 
-# Callback cuando llega un mensaje
 def on_message(client, userdata, msg):
     print(f"Mensaje recibido en {msg.topic}: {msg.payload.decode()}")
+    try:
+        command = json.loads(msg.payload.decode())
+        if command.get("action") == "alarm":
+            print("🔥 Alarma activada por el broker!")
+    except:
+        pass
 
-# Crear cliente MQTT
 client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
 client.on_connect = on_connect
 client.on_message = on_message
-
-# Conectar con el broker
 client.connect(MQTT_HOST, MQTT_PORT, 60)
 
-# Publicar un mensaje de prueba
-client.publish(MQTT_TOPIC, "Hola IoT desde Python con .env!")
+def send_sensor_data():
+    while True:
+        data = {
+            "device_id": DEVICE_ID,
+            "timestamp": int(time.time()),
+            "temperature": 20 + 5 * (time.time() % 10) / 10,
+            "motion_detected": False
+        }
+        payload = json.dumps(data)
+        client.publish(MQTT_TOPIC, payload)
+        print(f"Mensaje enviado: {payload}")
+        time.sleep(5)
 
-# Mantener el cliente escuchando
+Thread(target=send_sensor_data, daemon=True).start()
+
 try:
     client.loop_forever()
 except KeyboardInterrupt:
