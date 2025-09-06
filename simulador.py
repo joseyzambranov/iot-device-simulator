@@ -11,6 +11,8 @@ load_dotenv()
 MQTT_HOST = os.getenv("MQTT_HOST")
 MQTT_PORT = int(os.getenv("MQTT_PORT"))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC")
+MQTT_USERNAME = os.getenv("MQTT_USERNAME")
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 
 class IoTDevice:
     def __init__(self, device_id, device_type, security_level="normal"):
@@ -66,8 +68,12 @@ devices = [
 ]
 
 def on_connect(client, userdata, flags, reason_code, properties=None):
-    print("Conectado al broker con código:", reason_code)
-    client.subscribe(MQTT_TOPIC)
+    if reason_code == 0:
+        print("🔐 Conectado al broker MQTT con autenticación exitosa")
+        client.subscribe(MQTT_TOPIC)
+    else:
+        print(f"❌ Error de conexión MQTT: {reason_code}")
+        print("Verifica las credenciales MQTT_USERNAME y MQTT_PASSWORD")
 
 def on_message(client, userdata, msg):
     print(f"Mensaje recibido en {msg.topic}: {msg.payload.decode()}")
@@ -83,6 +89,7 @@ def on_message(client, userdata, msg):
         pass
 
 client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
 client.on_connect = on_connect
 client.on_message = on_message
 client.connect(MQTT_HOST, MQTT_PORT, 60)
